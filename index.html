@@ -11,8 +11,6 @@
       --text-primary: #111827;
       --text-secondary: #4B5563;
       --border: #E5E7EB;
-      --background: #F9FAFB;
-
       --danger: #D92D20;
       --success: #079455;
 
@@ -623,38 +621,37 @@
       const TYPE = "token-calculator:height";
 
       function sendHeight() {
-        const body = document.body;
-        const html = document.documentElement;
+        const height = Math.max(
+          document.documentElement.scrollHeight,
+          document.body ? document.body.scrollHeight : 0
+        );
 
-        const bodyRectH = body?.getBoundingClientRect?.().height ?? 0;
-        const htmlRectH = html?.getBoundingClientRect?.().height ?? 0;
-
-        const height = Math.ceil(Math.max(
-          body?.offsetHeight ?? 0,
-          html?.offsetHeight ?? 0,
-          bodyRectH,
-          htmlRectH
-        ));
-
-        window.parent.postMessage({ type: TYPE, height }, "*");
+        // pošalji visinu parent-u (Webflow)
+        window.parent.postMessage(
+          { type: TYPE, height },
+          "*"
+        );
       }
 
+      // osnovni momenti
       window.addEventListener("load", sendHeight);
       window.addEventListener("resize", sendHeight);
 
+      // hvata promene layouta (najbitnije)
       if ("ResizeObserver" in window) {
         const ro = new ResizeObserver(sendHeight);
         ro.observe(document.documentElement);
-        if (document.body) ro.observe(document.body);
+      } else {
+        setInterval(sendHeight, 500);
       }
 
+      // hvata animacije (max-height transition)
       document.addEventListener("transitionend", sendHeight, true);
-      document.addEventListener("input", sendHeight, true);
-      document.addEventListener("click", sendHeight, true);
 
-      setTimeout(sendHeight, 100);
-      setTimeout(sendHeight, 400);
-      setTimeout(sendHeight, 900);
+      // “nudge” posle load-a (fontovi, wrap, itd.)
+      setTimeout(sendHeight, 50);
+      setTimeout(sendHeight, 200);
+      setTimeout(sendHeight, 800);
     })();
   </script>
 </body>
