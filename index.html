@@ -10,7 +10,6 @@
       --text-primary: #111827;
       --text-secondary: #4B5563;
       --border: #E5E7EB;
-      --background: #C8C8C8;
 
       --danger: #D92D20;
       --success: #079455;
@@ -208,6 +207,7 @@
       background: var(--success);
       display: inline-block;
     }
+
   </style>
 </head>
 <body>
@@ -215,58 +215,72 @@
     <div class="container section">
       <div class="stack stack-lg">
         <div class="grid-2col">
+          <!-- Calculator -->
           <div class="card">
             <div class="stack">
               <div class="row row-between">
-                <h2 class="heading-md">Token grant calculator</h2>
+                <h2 class="heading-md">Your details</h2>
                 <p class="text-muted text-sm">Estimates only.</p>
               </div>
 
-              <!-- Inputs (functionality based on your "Simple Token Grant Calculator") -->
-              <div class="form-field" id="grantTokensField">
-                <label class="label" for="grantTokens">Total token grant</label>
-                <input class="input" id="grantTokens" inputmode="decimal" autocomplete="off" placeholder="e.g. 50000" />
-                <p class="error">Enter a valid token amount greater than 0.</p>
+              <div class="form-field" id="tokenGrantField">
+                <label class="label" for="tokenGrant">Token grant (total tokens)</label>
+                <input class="input" id="tokenGrant" name="tokenGrant" inputmode="decimal" autocomplete="off" placeholder="e.g. 50000" />
+                <p class="error" id="tokenGrantError">Enter a valid token grant greater than 0.</p>
+              </div>
+
+              <div class="form-field" id="expectedPriceField">
+                <label class="label" for="expectedPrice">Expected token price (USD)</label>
+                <input class="input" id="expectedPrice" name="expectedPrice" inputmode="decimal" autocomplete="off" placeholder="e.g. 1.50" />
+                <p class="error" id="expectedPriceError">Enter a valid expected price greater than 0.</p>
               </div>
 
               <div class="form-field" id="currentPriceField">
                 <label class="label" for="currentPrice">Current token price (USD)</label>
-                <input class="input" id="currentPrice" inputmode="decimal" autocomplete="off" placeholder="e.g. 0.25" />
-                <p class="error">Enter a valid price (0 or greater).</p>
+                <input class="input" id="currentPrice" name="currentPrice" inputmode="decimal" autocomplete="off" placeholder="e.g. 0.25" />
+                <p class="error" id="currentPriceError">Enter a valid current price (0 or greater).</p>
               </div>
 
               <div class="form-field" id="vestingYearsField">
-                <label class="label" for="vestingYears">Vesting length (years)</label>
-                <input class="input" id="vestingYears" inputmode="decimal" autocomplete="off" placeholder="e.g. 4" />
-                <p class="error">Enter a valid vesting length greater than 0.</p>
+                <label class="label" for="vestingYears">Vesting schedule (years)</label>
+                <input class="input" id="vestingYears" name="vestingYears" inputmode="decimal" autocomplete="off" placeholder="e.g. 4" />
+                <p class="help">Assumes straight-line monthly vesting.</p>
+                <p class="error" id="vestingYearsError">Enter a valid vesting length greater than 0.</p>
+              </div>
+
+              <div class="form-field" id="taxRateField">
+                <label class="label" for="taxRate">Estimated tax rate (%)</label>
+                <input class="input" id="taxRate" name="taxRate" inputmode="decimal" autocomplete="off" placeholder="e.g. 30" />
+                <p class="error" id="taxRateError">Enter a tax rate between 0 and 100.</p>
               </div>
 
               <button class="button" id="calculate" type="button">Calculate</button>
             </div>
           </div>
 
+          <!-- Results (always visible card, inner panel expands on Calculate) -->
           <div class="card-2" aria-live="polite">
             <div class="row row-between">
               <h2 class="heading-md">Results</h2>
             </div>
 
-            <!-- Results -->
             <div class="results" id="results" aria-hidden="true" style="max-height:0px;">
               <div class="results-grid">
                 <div class="metric">
-                  <p class="k">Total grant value today</p>
-                  <p class="v" id="totalPaperValue">--</p>
+                  <p class="k">Expected valuation</p>
+                  <p class="v" id="expectedValuation">—</p>
                 </div>
                 <div class="metric">
-                  <p class="k">Monthly vesting (tokens)</p>
-                  <p class="v" id="monthlyTokens">--</p>
+                  <p class="k">Monthly vesting value</p>
+                  <p class="v" id="monthlyVestingValue">—</p>
                 </div>
-              </div>
-
-              <div class="results-grid">
                 <div class="metric">
-                  <p class="k">Monthly vesting value (today)</p>
-                  <p class="v" id="monthlyValue">--</p>
+                  <p class="k">Tax liabilities</p>
+                  <p class="v" id="taxLiability">—</p>
+                </div>
+                <div class="metric">
+                  <p class="k">What your tokens are worth today</p>
+                  <p class="v" id="currentValue">—</p>
                 </div>
               </div>
             </div>
@@ -279,139 +293,185 @@
   </div>
 
   <script>
-    const $ = (id) => document.getElementById(id);
-
     const els = {
-      grantTokens: $("grantTokens"),
-      currentPrice: $("currentPrice"),
-      vestingYears: $("vestingYears"),
-      calculate: $("calculate"),
+      tokenGrant: document.getElementById("tokenGrant"),
+      expectedPrice: document.getElementById("expectedPrice"),
+      currentPrice: document.getElementById("currentPrice"),
+      vestingYears: document.getElementById("vestingYears"),
+      taxRate: document.getElementById("taxRate"),
+      calculate: document.getElementById("calculate"),
 
-      grantTokensField: $("grantTokensField"),
-      currentPriceField: $("currentPriceField"),
-      vestingYearsField: $("vestingYearsField"),
+      tokenGrantField: document.getElementById("tokenGrantField"),
+      expectedPriceField: document.getElementById("expectedPriceField"),
+      currentPriceField: document.getElementById("currentPriceField"),
+      vestingYearsField: document.getElementById("vestingYearsField"),
+      taxRateField: document.getElementById("taxRateField"),
 
-      results: $("results"),
-      resultsHint: $("resultsHint"),
-
-      totalPaperValue: $("totalPaperValue"),
-      monthlyTokens: $("monthlyTokens"),
-      monthlyValue: $("monthlyValue"),
+      results: document.getElementById("results"),
+      resultsHint: document.getElementById("resultsHint"),
+      expectedValuation: document.getElementById("expectedValuation"),
+      monthlyVestingValue: document.getElementById("monthlyVestingValue"),
+      taxLiability: document.getElementById("taxLiability"),
+      currentValue: document.getElementById("currentValue"),
     };
 
+    const CURRENCY = "USD";
     let hasCalculated = false;
 
-    function toNumberOrNaN(inputEl) {
-      const raw = (inputEl?.value || "").toString().replace(/,/g, "").trim();
-      if (!raw) return NaN;
-      const val = parseFloat(raw);
-      return Number.isFinite(val) ? val : NaN;
+    let heightPostRaf = 0;
+    function notifyParentHeight() {
+      // When embedded in an iframe, the parent page won't auto-resize.
+      // Post a robust height measurement to the parent so it can resize the iframe.
+      try {
+        if (!window.parent || window.parent === window) return;
+        if (heightPostRaf) cancelAnimationFrame(heightPostRaf);
+        heightPostRaf = requestAnimationFrame(() => {
+          const body = document.body;
+          const html = document.documentElement;
+          // NOTE:
+          // - scrollHeight can stay large even when content is clipped by max-height + overflow:hidden.
+          // - offsetHeight / bounding rect reflect the laid-out height we want the iframe to match.
+          const bodyRectH = body?.getBoundingClientRect?.().height ?? 0;
+          const htmlRectH = html?.getBoundingClientRect?.().height ?? 0;
+          const height = Math.ceil(Math.max(
+            body?.offsetHeight ?? 0,
+            html?.offsetHeight ?? 0,
+            bodyRectH,
+            htmlRectH,
+          ));
+          window.parent.postMessage({ type: "cost-calculator:height", height }, "*");
+          heightPostRaf = 0;
+        });
+      } catch {
+        // ignore
+      }
     }
 
-    function formatUSD(num, { maximumFractionDigits = 2 } = {}) {
-      const v = Number(num) || 0;
-      return v.toLocaleString("en-US", {
-        style: "currency",
-        currency: "USD",
-        maximumFractionDigits
-      });
+    function formatMoney(value) {
+      try {
+        return new Intl.NumberFormat(undefined, {
+          style: "currency",
+          currency: CURRENCY,
+          maximumFractionDigits: 0,
+        }).format(value);
+      } catch {
+        return `${CURRENCY} ${Math.round(value).toLocaleString()}`;
+      }
     }
 
-    function formatNumber(num, { maximumFractionDigits = 4 } = {}) {
-      const v = Number(num) || 0;
-      return v.toLocaleString("en-US", { maximumFractionDigits });
+    function parseNumber(raw) {
+      const cleaned = String(raw ?? "").trim().replace(/[, ]+/g, "");
+      if (!cleaned) return NaN;
+      const n = Number(cleaned);
+      return Number.isFinite(n) ? n : NaN;
     }
 
-    function setFieldValidity(fieldEl, isValid, { showErrors }) {
-      fieldEl.classList.toggle("field-invalid", Boolean(showErrors && !isValid));
+    function isClearedToDefault() {
+      const fields = [
+        els.tokenGrant,
+        els.expectedPrice,
+        els.currentPrice,
+        els.vestingYears,
+        els.taxRate,
+      ];
+      const inputsEmpty = fields.every((field) => !String(field.value || "").trim());
+      return inputsEmpty;
     }
 
     function showResults() {
       els.results.setAttribute("aria-hidden", "false");
       els.resultsHint.style.display = "none";
       els.results.classList.add("is-visible");
+      // Expand (no scrolling): animate to actual content height.
       requestAnimationFrame(() => {
         els.results.style.maxHeight = `${els.results.scrollHeight}px`;
+        notifyParentHeight();
       });
     }
 
     function hideResults() {
       hasCalculated = false;
-      const currentHeight = els.results.scrollHeight;
+      // Animate collapse (no scrolling): set current height -> 0.
+      const currentHeight = els.results.style.maxHeight === "none"
+        ? els.results.scrollHeight
+        : els.results.scrollHeight;
       els.results.style.maxHeight = `${currentHeight}px`;
       void els.results.offsetHeight;
       els.results.classList.remove("is-visible");
       els.results.style.maxHeight = "0px";
       els.results.setAttribute("aria-hidden", "true");
       els.resultsHint.style.display = "";
+      notifyParentHeight();
     }
 
-    function isClearedToDefault() {
-      const allEmpty = [
-        els.grantTokens.value,
-        els.currentPrice.value,
-        els.vestingYears.value,
-      ].every((v) => !String(v || "").trim());
-      return allEmpty;
+    function setFieldValidity(fieldEl, isValid, { showErrors }) {
+      fieldEl.classList.toggle("field-invalid", Boolean(showErrors && !isValid));
     }
 
     function validate({ showErrors }) {
-      const grantTokens = toNumberOrNaN(els.grantTokens);
-      const currentPrice = toNumberOrNaN(els.currentPrice);
-      const vestingYears = toNumberOrNaN(els.vestingYears);
+      const tokenGrant = parseNumber(els.tokenGrant.value);
+      const expectedPrice = parseNumber(els.expectedPrice.value);
+      const currentPrice = parseNumber(els.currentPrice.value);
+      const vestingYears = parseNumber(els.vestingYears.value);
+      const taxRate = parseNumber(els.taxRate.value);
 
-      const grantValid = Number.isFinite(grantTokens) && grantTokens > 0;
-      const priceValid = Number.isFinite(currentPrice) && currentPrice >= 0;
+      const tokenGrantValid = Number.isFinite(tokenGrant) && tokenGrant > 0;
+      const expectedPriceValid = Number.isFinite(expectedPrice) && expectedPrice > 0;
+      const currentPriceValid = Number.isFinite(currentPrice) && currentPrice >= 0;
       const vestingYearsValid = Number.isFinite(vestingYears) && vestingYears > 0;
-      const totalVestingMonths = vestingYearsValid ? vestingYears * 12 : NaN;
+      const taxRateValid = Number.isFinite(taxRate) && taxRate >= 0 && taxRate <= 100;
 
-      setFieldValidity(els.grantTokensField, grantValid, { showErrors });
-      setFieldValidity(els.currentPriceField, priceValid, { showErrors });
+      setFieldValidity(els.tokenGrantField, tokenGrantValid, { showErrors });
+      setFieldValidity(els.expectedPriceField, expectedPriceValid, { showErrors });
+      setFieldValidity(els.currentPriceField, currentPriceValid, { showErrors });
       setFieldValidity(els.vestingYearsField, vestingYearsValid, { showErrors });
+      setFieldValidity(els.taxRateField, taxRateValid, { showErrors });
 
-      const allValid = [
-        grantValid,
-        priceValid,
-        vestingYearsValid,
-      ].every(Boolean);
+      const allValid = tokenGrantValid
+        && expectedPriceValid
+        && currentPriceValid
+        && vestingYearsValid
+        && taxRateValid;
 
       return {
         allValid,
-        grantTokens: grantValid ? grantTokens : 0,
-        currentPrice: priceValid ? currentPrice : 0,
-        vestingYears: vestingYearsValid ? vestingYears : 0,
-        totalVestingMonths: Number.isFinite(totalVestingMonths) ? totalVestingMonths : 0,
+        tokenGrant,
+        expectedPrice,
+        currentPrice,
+        vestingYears,
+        taxRate,
       };
     }
 
     function calculate(v) {
-      const totalVestingMonths = v.totalVestingMonths;
-
-      // 1) Total grant value today (full paper value)
-      const totalPaperValue = v.grantTokens * v.currentPrice;
-
-      // 2) Monthly vesting + monthly value
+      const totalVestingMonths = v.vestingYears * 12;
+      const expectedValuation = v.tokenGrant * v.expectedPrice;
       const monthlyTokens = totalVestingMonths > 0
-        ? v.grantTokens / totalVestingMonths
+        ? v.tokenGrant / totalVestingMonths
         : 0;
+      const monthlyVestingValue = monthlyTokens * v.expectedPrice;
+      const taxLiability = expectedValuation * (v.taxRate / 100);
+      const currentValue = v.tokenGrant * v.currentPrice;
 
-      const monthlyValue = monthlyTokens * v.currentPrice;
-
-      // Update UI
-      els.totalPaperValue.textContent = formatUSD(totalPaperValue);
-      els.monthlyTokens.textContent = formatNumber(monthlyTokens, { maximumFractionDigits: 4 });
-      els.monthlyValue.textContent = formatUSD(monthlyValue);
+      els.expectedValuation.textContent = formatMoney(expectedValuation);
+      els.monthlyVestingValue.textContent = formatMoney(monthlyVestingValue);
+      els.taxLiability.textContent = formatMoney(taxLiability);
+      els.currentValue.textContent = formatMoney(currentValue);
     }
 
     function validateAndMaybeCalculate({ shouldCalculate }) {
+      // Only reset results to the default state when ALL fields are reset.
       if (isClearedToDefault()) {
         hideResults();
         validate({ showErrors: shouldCalculate });
         return;
       }
 
+      // Only show error messages on an explicit calculate attempt.
       const v = validate({ showErrors: shouldCalculate });
       if (!v.allValid) {
+        // Keep the last calculated results visible even if inputs become invalid.
+        // Only hide results if we haven't successfully calculated yet.
         if (!hasCalculated) hideResults();
         return;
       }
@@ -423,7 +483,26 @@
       }
     }
 
-    // Live update after first calculate (kept from the nicer UX pattern)
+    // Wire up
+    notifyParentHeight();
+
+    // Continuously report height changes (fonts load, results expand, responsive wraps, etc.)
+    try {
+      const ro = new ResizeObserver(() => notifyParentHeight());
+      ro.observe(document.documentElement);
+      ro.observe(document.body);
+    } catch {
+      // ResizeObserver not supported; fall back to the explicit calls elsewhere.
+    }
+
+    const inputs = [
+      els.tokenGrant,
+      els.expectedPrice,
+      els.currentPrice,
+      els.vestingYears,
+      els.taxRate,
+    ];
+
     const liveUpdate = () => {
       if (!hasCalculated) return;
       if (isClearedToDefault()) {
@@ -438,28 +517,37 @@
       }
     };
 
-    els.grantTokens.addEventListener("input", liveUpdate);
-    els.currentPrice.addEventListener("input", liveUpdate);
-    els.vestingYears.addEventListener("input", liveUpdate);
+    inputs.forEach((input) => {
+      input.addEventListener("input", liveUpdate);
+      input.addEventListener("keydown", (e) => {
+        if (e.key !== "Enter") return;
+        e.preventDefault();
+        validateAndMaybeCalculate({ shouldCalculate: true });
+      });
+    });
 
     els.calculate.addEventListener("click", () => {
       validateAndMaybeCalculate({ shouldCalculate: true });
     });
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter") return;
-      const t = e.target;
-      if (!t || t.tagName !== "INPUT") return;
-      e.preventDefault();
-      validateAndMaybeCalculate({ shouldCalculate: true });
+    // Keep expanded height correct on responsive reflow.
+    window.addEventListener("resize", () => {
+      if (els.results.classList.contains("is-visible")) {
+        // If we set max-height to none after transition, re-measure on resize.
+        els.results.style.maxHeight = `${els.results.scrollHeight}px`;
+      }
+      notifyParentHeight();
     });
 
+    // After expand transition completes, unlock height so it can grow naturally.
     els.results.addEventListener("transitionend", (e) => {
       if (e.propertyName !== "max-height") return;
       if (els.results.classList.contains("is-visible")) {
         els.results.style.maxHeight = "none";
       }
+      notifyParentHeight();
     });
+
   </script>
 
 </body>
